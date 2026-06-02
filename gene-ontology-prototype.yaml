@@ -1,0 +1,59 @@
+# Gene Ontology software prototype — the first kit (a STARTING DRAFT).
+# The domain content here is for the GO/ontology folks to curate; the format
+# and the grounded API/verification notes are the worked example.
+# See prototype/kits/README.md for the field reference.
+
+name: gene-ontology-prototype
+title: "Gene Ontology software prototype"
+description: "Reusable context + resources for building interactive prototypes over the Gene Ontology (GO) / OBO ontologies."
+maintainers: ["@kltm"]                 # draft — reassign to the GO/ontology owner
+
+applies_to:
+  profile: [developer]
+  deliverable: [interactive_app, interactive_report]
+  topics:
+    - "gene ontology"
+    - "GO"
+    - "OBO"
+    - "ontology"
+    - "term browser"
+    - "DAG"
+    - "GO term"
+
+context: |
+  The Gene Ontology (GO) is a structured, controlled vocabulary (an ontology) of
+  terms describing gene/gene-product biology, organized as a directed acyclic
+  graph (DAG): terms relate via is_a / part_of (and other) relations, so a term
+  has multiple parents and children, not a single tree path. Terms carry stable
+  identifiers like GO:0008150, a name, a definition, and a namespace
+  (biological_process / molecular_function / cellular_component). GO is
+  distributed in OBO and OWL formats and served by several public APIs (below).
+  A "term browser" or similar prototype typically lets a user search/select a
+  term and explore its neighborhood in the DAG.
+
+skills:
+  # GROUNDED, load-bearing (this is the build agent's own hard-won rule):
+  - "VERIFY the exact response shape of any GO API against a real example value
+     with fetch_url BEFORE writing code against it. The training set is full of
+     plausible-but-fictional GO endpoints — bbop#49 shipped a broken app because
+     it assumed a QuickGO `.../terms/{id}/history` endpoint that does not exist.
+     If the data you want isn't exposed, work with what IS (and say so in answer.md)."
+  # DRAFT — curate with the GO experts:
+  - "(curate) Preferred way to load/slice ontology data for a static prototype."
+
+libraries: []                          # (curate) e.g. an ontology-access library, if a run needs one
+
+resources:
+  # Public GO APIs the build agent already knows to consider (grounded):
+  - url: "https://www.ebi.ac.uk/QuickGO/"
+    note: "QuickGO — GO terms, annotations, relations (REST). Verify endpoint shapes first."
+  - url: "https://www.ebi.ac.uk/ols4/"
+    note: "OLS (Ontology Lookup Service) — generic OBO/ontology term + hierarchy API."
+  - url: "http://geneontology.org/"
+    note: "GO website + docs + downloads (OBO/OWL, annotation files)."
+  # (curate) add the specific GO docs / data slices a prototype should ground in.
+
+run_hints:                             # suggestions the agent MAY override
+  stack: "Prefer a dependency-light prototype (a static GO data slice + vanilla JS or a small framework) deployable to GitHub Pages; no server needed."
+  output_target: "A single interactive page on Pages (the run's docs/runs/.../index.html)."
+  keep_in_mind: "Render the DAG honestly (multiple parents); don't fake a strict tree. Cite the data source + its fetch date."
