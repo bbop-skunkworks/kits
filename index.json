@@ -1,0 +1,58 @@
+{
+  "kits": [
+    {
+      "applies_to": {
+        "deliverable": [
+          "interactive_app"
+        ],
+        "profile": [
+          "developer"
+        ],
+        "topics": [
+          "GO-CAM",
+          "GOCAM",
+          "causal activity model",
+          "gocam-py",
+          "Noctua",
+          "pathway figure",
+          "curation",
+          "provenance",
+          "go-gocam-viewer",
+          "biological pathway"
+        ]
+      },
+      "description": "Reusable context + hard-won lessons for building an interactive GO-CAM (causal activity model) prototype from a pathway figure or gene list, with per-assertion provenance.",
+      "maintainers": [
+        "@kltm"
+      ],
+      "name": "go-cam-prototype",
+      "title": "GO-CAM software prototype"
+    },
+    {
+      "applies_to": {
+        "deliverable": [
+          "interactive_app",
+          "interactive_report"
+        ],
+        "profile": [
+          "developer"
+        ],
+        "topics": [
+          "OBO",
+          "ontology",
+          "term browser",
+          "DAG",
+          "term",
+          "history"
+        ]
+      },
+      "description": "Reusable context + resources for building interactive prototypes for (OBO) ontologies.",
+      "maintainers": [
+        "@kltm"
+      ],
+      "name": "ontology-viz-software-prototype",
+      "title": "Ontology visualization software prototype"
+    }
+  ],
+  "version": 1
+}
