@@ -16,7 +16,6 @@ applies_to:
     - "OBO"
     - "ontology"
     - "term browser"
-    - "DAG"
     - "term"
     - "history"
 
@@ -28,7 +27,7 @@ context: |
   name, a definition, and a namespace. Ontologies are distributed in
   OBO and OWL formats and served by several public APIs (below).  A
   "term browser" or similar prototype typically lets a user
-  search/select a term and explore its neighborhood in the DAG.
+  search/select a term and explore its neighborhood in the graph.
 
 skills:
   # GROUNDED, load-bearing (this is the build agent's own hard-won rule):
