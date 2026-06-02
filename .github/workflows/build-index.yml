@@ -1,0 +1,43 @@
+name: build-index
+
+# Regenerate index.json (the consolidated kit catalog CAT consumes in one fetch)
+# whenever a kit changes.  Also triggers on changes to the generator/this file,
+# so it self-bootstraps the first time it lands.  The index.json commit can't
+# loop: its path isn't in the trigger filter, and a GITHUB_TOKEN-authored push
+# doesn't re-trigger workflows.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'kits/**'
+      - 'build_index.py'
+      - '.github/workflows/build-index.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pyyaml
+      - name: Build index.json
+        run: python build_index.py
+      - name: Commit if changed
+        run: |
+          if [ -n "$(git status --porcelain index.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add index.json
+            git commit -m "build: regenerate kit index.json [skip ci]"
+            git push
+            echo "index.json updated."
+          else
+            echo "index.json unchanged."
+          fi
