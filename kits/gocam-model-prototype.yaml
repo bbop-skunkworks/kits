@@ -1,0 +1,91 @@
+# GO-CAM model-from-figure prototype — distilled from the real
+# geneontology/go-prototype-0000001 build (its README goal + the hard-won
+# lessons in its issue journal).  Domain content is a starting draft for the
+# GO-CAM / Noctua folks to curate; the grounded engineering lessons are the
+# worked example.  See prototype/kits/README.md for the field reference.
+
+name: gocam-model-prototype
+title: "GO-CAM model-from-figure prototype"
+description: "Reusable context + hard-won lessons for building an interactive GO-CAM (causal activity model) prototype from a pathway figure or gene list, with per-assertion provenance."
+maintainers: ["@kltm"]                 # draft — reassign to the GO-CAM / Noctua owner
+
+applies_to:
+  profile: [developer]
+  deliverable: [interactive_app]
+  topics:
+    - "GO-CAM"
+    - "GOCAM"
+    - "causal activity model"
+    - "gocam-py"
+    - "Noctua"
+    - "pathway figure"
+    - "curation"
+    - "provenance"
+    - "go-gocam-viewer"
+    - "biological pathway"
+
+context: |
+  A GO-CAM (Gene Ontology Causal Activity Model) represents biology as a graph
+  of molecular ACTIVITIES (GO molecular-function terms enacted by gene products)
+  connected by CAUSAL relations (e.g. "directly positively regulates"), with
+  context like the cell/anatomy compartment. This is richer than standard GO
+  term annotation: edges (causal relations) are first-class, not decoration.
+
+  The prototype class here: take a research-paper pathway FIGURE (or a gene list
+  + species + optional process hint), build a GO-CAM with gocam-py, and render it
+  as an interactive page where EVERY node and edge surfaces its SOURCE. The whole
+  point is honest provenance — each assertion is tagged literature / database /
+  amigo / instinct, and "instinct" (LLM inference with no external evidence) is
+  shown as such, never disguised as curated fact.
+
+skills:
+  # GROUNDED, load-bearing — these are the real lessons from go-prototype-0000001:
+  - "Provenance is the deliverable's whole point: every node AND every edge
+     carries a source tagged literature / database / amigo / instinct. NEVER
+     fabricate a citation — if there's no external evidence, tag the assertion
+     `instinct` with an explicit justification. Surfacing honest uncertainty
+     beats a fake citation."
+  - "Causal edges are FIRST-CLASS: research and source each edge SEPARATELY from
+     its nodes, and do NOT attach GO term annotations to a causal edge (a causal
+     relation is not a GO annotation). go-prototype-0000001 had to enforce
+     no-go_annotation on edges explicitly."
+  - "Do NOT invent back-edges: when an activity is a leaf in the figure, leave it
+     a leaf. The agent tends to hallucinate reciprocal/feedback edges that aren't
+     in the source — only assert an edge the figure or a real source supports."
+  - "Retrieve in authority order: existing GO-CAMs + standard GO annotations
+     FIRST (GO API / Golr-AmiGO), THEN the Alliance of Genome Resources
+     (phenotypes / interactions / expression). Prefer existing authoritative
+     curation over your own inference."
+  - "Render with the PUBLISHED `<go-gocam-viewer>` web component
+     (@geneontology/web-components): build the model in gocam-py (LinkML), then
+     TRANSLATE it to the viewer's graph JSON shape and inject via setModelData(...).
+     The node/edge payload shape must match EXACTLY or clicks break with
+     'Unrecognized node payload' — verify BOTH node and edge clicks surface their
+     provenance panel before calling the page done."
+  - "VERIFY the real response shape of any GO/Alliance API against a live example
+     with a fetch BEFORE coding against it (the training set is full of
+     plausible-but-fictional endpoints)."
+
+libraries:
+  - gocam-py                           # build the GO-CAM LinkML model
+  # @geneontology/web-components is a JS/web-component dep (the viewer) — see resources
+
+resources:
+  - url: "https://github.com/geneontology/gocam-py"
+    note: "gocam-py — the GO-CAM LinkML data model + helpers to construct a Model."
+  - url: "https://github.com/geneontology/web-components"
+    note: "@geneontology/web-components — provides <go-gocam-viewer>; inject the model via setModelData(...)."
+  - url: "https://api.geneontology.org/"
+    note: "GO API — terms, annotations, GO-CAM lookups. Verify endpoint shapes first."
+  - url: "https://amigo.geneontology.org/"
+    note: "AmiGO / Golr (Solr) — annotation + ontology search backing the GO API."
+  - url: "https://www.alliancegenome.org/"
+    note: "Alliance of Genome Resources — phenotypes / interactions / expression (second authority)."
+  - url: "https://github.com/geneontology/go-prototype-0000001"
+    note: "The reference prototype this kit is distilled from — its issue journal is the worked example."
+  # (curate) add the specific GO-CAM modeling guidelines / relation (RO) docs a run should ground in.
+
+run_hints:                             # suggestions the agent MAY override
+  stack: "gocam-py to build the LinkML model (+ a provenance sidecar per assertion), then a static page in docs/ wrapping the published <go-gocam-viewer> web component. GitHub Pages, no server."
+  output_target: "An interactive GO-CAM viewer page on Pages with a custom provenance panel that surfaces each node's and edge's source on click."
+  keep_in_mind: "Provenance is the point — every node and edge must surface its source, and 'instinct' must read AS instinct. Causal edges are first-class; don't fake citations or back-edges."

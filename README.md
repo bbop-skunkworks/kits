@@ -7,9 +7,18 @@ run's `BRIEF.md`, so it shapes what the build/research agent does — **without
 anyone editing the agent, CAT, or BBOT.**
 
 Kits are the **one surface the group customizes** directly. You author a kit by
-adding a YAML file here (by pull request); you do **not** touch the agents'
-internals. This repo is read by bbot's spawn flow at run time and by CAT when it
-suggests a kit at intake.
+adding a YAML file under [`kits/`](kits/) (by pull request); you do **not** touch
+the agents' internals. This repo is read by bbot's spawn flow at run time and by
+CAT when it suggests a kit at intake.
+
+## Layout
+
+```
+kits/<name>.yaml              the kit instances (what you author)
+kit.schema.json               the contract (generated from the LinkML Kit class)
+validate.py                   validates kits/*.yaml against kit.schema.json
+.github/workflows/validate.yml  runs validate.py on every push + PR
+```
 
 ## What goes in a kit (and what does NOT)
 
@@ -22,8 +31,8 @@ top of run #42". Those belong in the request itself.
 
 ## Format
 
-A kit is a YAML file named `<name>.yaml` at the repo root. `<name>` is the
-stable `kit:<name>` handle.
+A kit is a YAML file at `kits/<name>.yaml`. `<name>` is the stable `kit:<name>`
+handle.
 
 ```yaml
 name: gene-ontology-prototype        # stable id, kebab-case (the kit:<name> handle)
@@ -62,17 +71,18 @@ suggestions only** — a kit informs *what to consider*; the agent still decides
 
 The format is a **LinkML class** (`Kit` in
 [`bbop-skunkworks/operations`](https://github.com/bbop-skunkworks/operations)
-at `prototype/schema/bbot.yaml`) — that's the formal contract. You author plain
-YAML; the class is what CAT and the spawn flow parse it into.
+at `prototype/schema/bbot.yaml`) — that's the source. Its generated JSON Schema
+is shipped here as `kit.schema.json`, and that's what validation checks against.
+You author plain YAML; the class is the contract behind it.
 
 ## Add a kit
 
-1. Add `your-kit-name.yaml` at the repo root (copy the format above).
+1. Add `kits/your-kit-name.yaml` (copy the format above).
 2. Fill `applies_to` honestly, so CAT suggests it for the right tasks (not noise).
 3. Put **reusable** knowledge in `context` / `skills` / `resources`; leave
    per-run specifics out.
-4. Validate locally: `python validate.py your-kit-name.yaml`
-   (needs `pyyaml`: `pip install pyyaml`). CI runs the same check on your PR.
+4. Validate locally: `pip install pyyaml jsonschema && python validate.py`
+   (validates against `kit.schema.json`). CI runs the same check on your PR.
 5. Open a pull request. A maintainer reviews and merges.
 
 ## How a kit gets used
@@ -80,7 +90,7 @@ YAML; the class is what CAT and the spawn flow parse it into.
 - **At intake**, CAT may suggest a fitting kit for a request based on
   `applies_to` (profile / deliverable / topics).
 - The request (a bbot issue) carries a `kit:<name>` label.
-- **At spawn**, bbot fetches `https://raw.githubusercontent.com/bbop-skunkworks/kits/main/<name>.yaml`
+- **At spawn**, bbot fetches `https://raw.githubusercontent.com/bbop-skunkworks/kits/main/kits/<name>.yaml`
   and merges the kit into the run's `BRIEF.md` (a `## Kit` section). The agent
   reads the BRIEF — it never sees this repo directly.
 
@@ -89,7 +99,7 @@ issue yourself. CAT is a convenience layer, not a gate.
 
 ## Relationship to `operations`
 
-The **format/contract** (the LinkML `Kit` class + the canonical validator) lives
-in `bbop-skunkworks/operations`. The **kit instances** (the `*.yaml` files) live
-here and are curated by the group. Keep domain content here; the agents'
-internals stay in `operations`.
+The **format/contract** (the LinkML `Kit` class, from which `kit.schema.json` is
+generated) lives in `bbop-skunkworks/operations`. The **kit instances** (the
+`kits/*.yaml` files) live here and are curated by the group. Keep domain content
+here; the agents' internals stay in `operations`.

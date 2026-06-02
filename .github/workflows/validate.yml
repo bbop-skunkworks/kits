@@ -1,8 +1,8 @@
 name: validate-kits
 
-# Validate every kit YAML against the kit format on push + PR, so a malformed
-# kit can't reach the spawn flow.  The canonical contract is the LinkML `Kit`
-# class in bbop-skunkworks/operations; validate.py is the dependency-light mirror.
+# Validate every kit under kits/ against the kit contract (kit.schema.json,
+# generated from the LinkML `Kit` class in bbop-skunkworks/operations) on push +
+# PR, so a malformed kit can't reach the spawn flow.
 
 on:
   push:
@@ -17,6 +17,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install pyyaml
+      - run: pip install pyyaml jsonschema
       - name: Validate all kits
         run: python validate.py

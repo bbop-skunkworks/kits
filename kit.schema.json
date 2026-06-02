@@ -1,0 +1,977 @@
+{
+    "$defs": {
+        "AcceptanceGrade": {
+            "description": "Verdict from the post-run acceptance gate.",
+            "enum": [
+                "pass",
+                "fail",
+                "skip"
+            ],
+            "title": "AcceptanceGrade",
+            "type": "string"
+        },
+        "AgentAction": {
+            "description": "Terminal action chosen by the mind on a given turn.",
+            "enum": [
+                "respond",
+                "silent",
+                "file_bbot_issue",
+                "post_to_bbot_issue",
+                "spawn_heavy_run",
+                "refine_brief"
+            ],
+            "title": "AgentAction",
+            "type": "string"
+        },
+        "Artifact": {
+            "additionalProperties": false,
+            "description": "The published output of a Run.  Lives in docs/runs/<run_id>/ in the\nspawned repo and (when configured) at a GitHub Pages URL.  Functional\nartifacts are the deliverable; plan-document artifacts get caught by\nthe acceptance gate.",
+            "properties": {
+                "answer_md": {
+                    "description": "Contents of answer.md (the agent's narrative of what was built).",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "built_at": {
+                    "description": "When the artifact was committed and published.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "files": {
+                    "description": "Files in the artifact directory.  Embed inline -- ArtifactFile only exists as part of an Artifact.",
+                    "items": {
+                        "$ref": "#/$defs/ArtifactFile"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "Artifact id (typically composed of question id + run id).",
+                    "type": "string"
+                },
+                "pages_url": {
+                    "description": "Live GitHub Pages URL.",
+                    "format": "uri",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "run": {
+                    "description": "The Run that produced this artifact.",
+                    "type": "string"
+                },
+                "source_repo_url": {
+                    "description": "URL of the spawned per-question repo on github.com.",
+                    "format": "uri",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "verified_at": {
+                    "description": "When the artifact was last verified by inspection.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "verified_by": {
+                    "$ref": "#/$defs/SpeakerKind",
+                    "description": "Which entity verified it."
+                },
+                "verified_grade": {
+                    "$ref": "#/$defs/VerificationGrade",
+                    "description": "Verdict after inspection (functional / broken / plan-only)."
+                }
+            },
+            "required": [
+                "id",
+                "run"
+            ],
+            "title": "Artifact",
+            "type": "object"
+        },
+        "ArtifactFile": {
+            "additionalProperties": false,
+            "description": "A single file inside an Artifact directory.",
+            "properties": {
+                "mime_type": {
+                    "description": "Detected or declared MIME type (e.g. \"text/html\").",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "path": {
+                    "description": "Relative path within docs/runs/<run_id>/.",
+                    "type": "string"
+                },
+                "sha256": {
+                    "description": "SHA-256 hex digest of the file contents.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "size_bytes": {
+                    "description": "File size in bytes.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "path"
+            ],
+            "title": "ArtifactFile",
+            "type": "object"
+        },
+        "Asker": {
+            "additionalProperties": false,
+            "description": "A person who interacts with the bbot pipeline.  Identity bridges Slack\n(via slack_user_id) and GitHub (via github_handle).  An Asker is durable\nacross questions -- preferences and history accumulate.",
+            "properties": {
+                "affiliation": {
+                    "description": "Group or institution affiliation (e.g. \"BBOP at LBL\").",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "display_name": {
+                    "description": "Display name for attribution.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "email": {
+                    "description": "Email when known (sometimes from Slack profile).",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "first_seen_at": {
+                    "description": "When this asker was first observed by the pipeline.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "github_handle": {
+                    "description": "GitHub username (without leading @).",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "Internal stable id (we use slack_user_id when known, else github_handle).",
+                    "type": "string"
+                },
+                "last_active_at": {
+                    "description": "When this asker last interacted.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "slack_user_id": {
+                    "description": "Slack user id (e.g. U01KRUXC8FQ).",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "Asker",
+            "type": "object"
+        },
+        "BuildMaturity": {
+            "description": "Distinguishes a proof-of-concept attempt from a production-handoff\nattempt.  A prototype and a finished application are different things,\nand the agent's strategy + the acceptance rubric vary accordingly.\n\nThe mind sets this at intake based on the asker's words.  When in\ndoubt, default to `prototype` -- most bbot questions are prototyping\nquestions.  `production_handoff` is the explicit signal that the\nasker is past prototyping and wants a credible path to a real shipped\nproduct, which usually means the deliverable shifts to a static_report\ndescribing that path rather than a freshly-built app.",
+            "enum": [
+                "prototype",
+                "production_handoff"
+            ],
+            "title": "BuildMaturity",
+            "type": "string"
+        },
+        "ConversationSurface": {
+            "description": "Where a conversation turn happened.",
+            "enum": [
+                "slack",
+                "github_issue_body",
+                "github_issue_comment"
+            ],
+            "title": "ConversationSurface",
+            "type": "string"
+        },
+        "ConversationTurn": {
+            "additionalProperties": false,
+            "description": "A single turn in a conversation -- Slack message, GitHub issue body, or\nGitHub issue comment.  Captures who said what, when, in which surface,\nand (for mind turns) what action was chosen.",
+            "properties": {
+                "action": {
+                    "$ref": "#/$defs/AgentAction",
+                    "description": "Action the mind chose for this turn (mind turns only)."
+                },
+                "channel_or_issue": {
+                    "description": "Slack channel id or GitHub issue number (as a string).",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "Composed key, e.g. \"slack:C0B4SH4AFSB:1779395186.200729\" or \"issue:38#comment-1\".",
+                    "type": "string"
+                },
+                "intent": {
+                    "description": "Classified intent of the turn (e.g. \"intake\", \"status_query\").  Free-text for now.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "question": {
+                    "description": "The Question this turn relates to, when applicable.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "reason": {
+                    "description": "Free-text reason for the action (mind turns only -- aids audit).",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "run": {
+                    "description": "The Run this turn relates to, when applicable.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "speaker": {
+                    "description": "The Asker if speaker_kind=asker.  None otherwise.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "speaker_kind": {
+                    "$ref": "#/$defs/SpeakerKind",
+                    "description": "What kind of entity authored the turn."
+                },
+                "surface": {
+                    "$ref": "#/$defs/ConversationSurface",
+                    "description": "Where the turn happened."
+                },
+                "text": {
+                    "description": "Visible text of the turn (after mention-stripping etc.).",
+                    "type": "string"
+                },
+                "thread_key": {
+                    "description": "Slack thread_ts or \"<issue_number>#<comment_id>\" for grouping.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "timestamp": {
+                    "description": "When the turn happened.",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "tool_calls": {
+                    "description": "JSON-serialised list of tool calls made on this turn (mind turns only).",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "id",
+                "surface",
+                "channel_or_issue",
+                "speaker_kind",
+                "timestamp",
+                "text"
+            ],
+            "title": "ConversationTurn",
+            "type": "object"
+        },
+        "DeliverableKind": {
+            "description": "What the asker wants delivered.  Every kind ASSUMES delivery via GitHub\nPages by default -- the Pages URL is the deliverable's home, even when\nthe substantive output is a downloadable artifact and Pages serves the\nexplanation / index page for it.  The Pages site IS the durable group\nmemory of what was built; bare answer-in-issue is the exception that\nrequires justification.\n\nThe acceptance gate dispatches on this enum.  Mismatch (asker wanted X,\nagent delivered Y) is a failure independent of whether the delivered Y\nis substantive.",
+            "enum": [
+                "interactive_app",
+                "interactive_report",
+                "static_report",
+                "artifacts_with_index",
+                "answer_in_issue"
+            ],
+            "title": "DeliverableKind",
+            "type": "string"
+        },
+        "ExecutorKind": {
+            "description": "The agent runtime engine that drove a Run.",
+            "enum": [
+                "build_agent",
+                "codex_cli",
+                "open_scientist",
+                "raw",
+                "stub"
+            ],
+            "title": "ExecutorKind",
+            "type": "string"
+        },
+        "Kit": {
+            "additionalProperties": false,
+            "description": "A reusable, human-authored bundle of CLASS-expertise for a run -- domain\ncontext, skill/tool hints, libraries, resources, and optional run hints.\nAttached to a request (a kit:<name> on the issue) and merged into that\nrun's BRIEF.md, so it shapes what the autonomous agent does WITHOUT anyone\nediting the agent / CAT / BBOT.  The human surface for customization;\nauthored as plain YAML (see prototype/kits/README.md), this class is the\ncontract behind it.  Distinct from the per-run issue/BRIEF: the issue\ncarries this-run specifics, the kit carries reusable how-to-build-this-class.",
+            "properties": {
+                "applies_to": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/KitApplicability"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Signals CAT uses to pick this kit as a default for a task."
+                },
+                "context": {
+                    "description": "Domain background injected into the BRIEF.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "description": {
+                    "description": "One line -- what this kit is for.",
+                    "type": "string"
+                },
+                "libraries": {
+                    "description": "Packages the agent may install / use.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "maintainers": {
+                    "description": "GitHub handles of who owns / curates the kit.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "name": {
+                    "description": "Stable kebab-case id; the kit:<name> handle.",
+                    "type": "string"
+                },
+                "resources": {
+                    "description": "Docs / APIs / data to consider.",
+                    "items": {
+                        "$ref": "#/$defs/KitResource"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "run_hints": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/KitRunHints"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "OPTIONAL suggested run config -- the agent MAY override (kits inform; the engine decides how to run)."
+                },
+                "skills": {
+                    "description": "Hints on approaches / tools the agent should use.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "title": {
+                    "description": "Human-readable title.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "name",
+                "description"
+            ],
+            "title": "Kit",
+            "type": "object"
+        },
+        "KitApplicability": {
+            "additionalProperties": false,
+            "description": "Signals CAT uses to pick a default kit for a task.  Embed inline -- only exists as part of a Kit.",
+            "properties": {
+                "deliverable": {
+                    "description": "Which deliverable kinds this kit suits.",
+                    "items": {
+                        "$ref": "#/$defs/DeliverableKind"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "profile": {
+                    "description": "Which profiles this kit suits.",
+                    "items": {
+                        "$ref": "#/$defs/Profile"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "topics": {
+                    "description": "Free-text topic phrases for CAT's semantic match.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                }
+            },
+            "title": "KitApplicability",
+            "type": "object"
+        },
+        "KitResource": {
+            "additionalProperties": false,
+            "description": "A doc / API / data resource a kit points at (set url OR drive).  Embed inline.",
+            "properties": {
+                "drive": {
+                    "description": "A Drive file id shared with the reader SA.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "note": {
+                    "description": "What it is / when to use it.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "url": {
+                    "description": "A public URL.",
+                    "format": "uri",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "KitResource",
+            "type": "object"
+        },
+        "KitRunHints": {
+            "additionalProperties": false,
+            "description": "Optional run-config suggestions a kit offers (the agent may override).  Embed inline.",
+            "properties": {
+                "keep_in_mind": {
+                    "description": "Constraints / cautions to carry into the run.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "output_target": {
+                    "description": "Suggested output target.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "stack": {
+                    "description": "Suggested tech stack.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "KitRunHints",
+            "type": "object"
+        },
+        "Profile": {
+            "description": "bbot Issue Form profile -- captures who is asking and the rough scope.\nProfile is orthogonal to DeliverableKind (what kind of output is wanted);\na developer-profile question can legitimately want a plan document, and a\nresearcher-profile question can legitimately want a working artifact.\n\nHistorical note: the enum used to include `group_member` for short\nlogistical / policy / HOWTO questions.  That whole class is now handled\nby the secretarial path (cat answers in Slack + files a closed\n`kind:secretarial` bbot issue; no bbot-run spawn).  See QuestionKind.\nHistorical issues with `profile:group-member` labels remain valid;\nthe label survives independently of the enum.",
+            "enum": [
+                "researcher",
+                "developer"
+            ],
+            "title": "Profile",
+            "type": "string"
+        },
+        "Question": {
+            "additionalProperties": false,
+            "description": "A research or engineering question filed against bbot.  Lives as a\nGitHub Issue on bbop-skunkworks/bbot; runs accumulate as the question\nprogresses.  Predecessors capture V2-of-X relationships explicitly.",
+            "properties": {
+                "additional_askers": {
+                    "description": "Other askers credited on this question (e.g. collaborators).",
+                    "items": {
+                        "$ref": "#/$defs/Asker"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "body": {
+                    "description": "Issue body markdown (the manifest the agent reads).",
+                    "type": "string"
+                },
+                "build_maturity": {
+                    "$ref": "#/$defs/BuildMaturity",
+                    "description": "Whether the asker wants a prototype (proof-of-concept / feasibility\ncheck) or a production-handoff (path-to-shipped-product analysis).\nThe acceptance gate's strictness on quality / testing / sanding\nvaries based on this -- a prototype is judged on does-it-work and\nis-it-compelling; a production-handoff is judged on does-it-document\nthe-path-forward credibly.  Defaults conceptually to `prototype` if\nnot explicitly set by the asker (most bbot questions are prototypes).\n\nREQUIRED for normal bbot-run issues; OMITTED for secretarial issues.\n"
+                },
+                "deliverable_kind": {
+                    "$ref": "#/$defs/DeliverableKind",
+                    "description": "What the asker wants delivered.  The mind sets this at intake based\non the asker's words and prior context.  Default expectation across\nALL kinds (except answer_in_issue) is a GitHub Pages site -- what\nvaries is whether that page is an interactive app, an interactive\nreport, a static report, or an index for downloadable artifacts.\n\nThe acceptance gate dispatches on this slot to pick the right rubric.\nGetting it wrong is the #1 way the pipeline mis-grades: bbop#38 was\nfiled with the implicit assumption of interactive_app but the agent\ndelivered a static_report, and the gate (correctly) rejected it as\nwrong_kind.\n\nREQUIRED for normal bbot-run issues; OMITTED for secretarial issues.\n"
+                },
+                "filed_at": {
+                    "description": "When the issue was created.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "filed_by": {
+                    "$ref": "#/$defs/SpeakerKind",
+                    "description": "Which entity actually filed it (a human, the mind, etc.)."
+                },
+                "final_artifact": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Artifact"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "The most recent or authoritative artifact for the question."
+                },
+                "id": {
+                    "description": "Stable id, typically \"bbot-<issue_number>\".",
+                    "type": "string"
+                },
+                "issue_number": {
+                    "description": "GitHub issue number on bbop-skunkworks/bbot.",
+                    "type": "integer"
+                },
+                "issue_url": {
+                    "description": "HTTPS URL of the GitHub issue.",
+                    "format": "uri",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "kind": {
+                    "$ref": "#/$defs/QuestionKind",
+                    "description": "Categorical shape of the issue.  Distinct from `profile` (which\nclassifies bbot-run *work*).  Absent for normal bbot-run issues.\nExplicit kinds opt into different flows -- today only\n`secretarial` exists (cat answers + records, no spawn).\n"
+                },
+                "kits": {
+                    "description": "Kits applied to this question -- the `kit:<name>` labels resolved to\ntheir definitions.  Provenance of which reusable class-expertise\nbundles were merged into this run's BRIEF.  References Kit by name;\nthe kit definitions live in the public bbop-skunkworks/kits repo.\n",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "labels": {
+                    "description": "GitHub labels currently on the issue.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "predecessors": {
+                    "description": "Prior questions this one builds on (V2-of-X relationship).  References by id; the full Question records live elsewhere.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "primary_asker": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Asker"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "The asker who filed the question."
+                },
+                "profile": {
+                    "$ref": "#/$defs/Profile",
+                    "description": "Issue Form profile -- shapes the agent's brief.  Captures asker\ncontext, NOT what kind of output is expected (see deliverable_kind).\nREQUIRED for normal bbot-run issues; OMITTED for secretarial\n(kind=secretarial) issues which do not run.\n"
+                },
+                "runs": {
+                    "description": "Run records for this question, newest first.  Runs are intrinsic to the Question they're for; embed inline.",
+                    "items": {
+                        "$ref": "#/$defs/Run"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "runtime": {
+                    "$ref": "#/$defs/Runtime",
+                    "description": "Runtime budget for the agent."
+                },
+                "slack_thread_permalink": {
+                    "description": "Permalink to the Slack thread this came from (when applicable).",
+                    "format": "uri",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "status": {
+                    "$ref": "#/$defs/QuestionStatus",
+                    "description": "Current pipeline phase."
+                },
+                "title": {
+                    "description": "Issue title.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "id",
+                "issue_number",
+                "title",
+                "body"
+            ],
+            "title": "Question",
+            "type": "object"
+        },
+        "QuestionKind": {
+            "description": "Categorical shape of a Question issue.  Distinct from `profile`\n(which classifies bbot-run *work*) -- `kind` classifies whether a\nbbot run happens at all.  The label `kind:<value>` is applied to\nthe GitHub issue at filing time.\n\nAbsence of a kind label implies a default bbot-run-bound issue\n(its profile + ready label drive the spawn workflow).  Explicit\nkinds opt into different non-run-bound flows.",
+            "enum": [
+                "secretarial"
+            ],
+            "title": "QuestionKind",
+            "type": "string"
+        },
+        "QuestionStatus": {
+            "description": "Phase of a bbot question's lifecycle.",
+            "enum": [
+                "filed",
+                "refining",
+                "queued",
+                "executing",
+                "done",
+                "needs_iteration",
+                "failed",
+                "timeout"
+            ],
+            "title": "QuestionStatus",
+            "type": "string"
+        },
+        "Run": {
+            "additionalProperties": false,
+            "description": "A single execution of the agent against a Question.  Records what\nhappened, what was produced, and the acceptance gate verdict.  Multiple\nruns per Question are possible (re-runs after needs_iteration).",
+            "properties": {
+                "acceptance_grade": {
+                    "$ref": "#/$defs/AcceptanceGrade",
+                    "description": "Verdict from the acceptance gate."
+                },
+                "acceptance_reason": {
+                    "description": "Free-text rationale from the acceptance gate.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "artifact": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Artifact"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Artifact produced by this run.  Embedded inline; the artifact's identity is tied to the run."
+                },
+                "attempts": {
+                    "description": "How many engine attempts were used (for orient-quit retry).",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "ended_at": {
+                    "description": "When the run terminated.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "error": {
+                    "description": "Engine error tail (when success=false).",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "executor": {
+                    "$ref": "#/$defs/ExecutorKind",
+                    "description": "Which agent engine drove this run."
+                },
+                "id": {
+                    "description": "Run id (e.g. run-20260521T204605Z).",
+                    "type": "string"
+                },
+                "input_tokens": {
+                    "description": "Total input tokens consumed (when known).",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "output_tokens": {
+                    "description": "Total output tokens produced (when known).",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "question": {
+                    "description": "The Question this run is for.",
+                    "type": "string"
+                },
+                "runtime": {
+                    "$ref": "#/$defs/Runtime",
+                    "description": "Runtime budget the run had (small/standard)."
+                },
+                "spawned_repo": {
+                    "description": "Full GitHub repo name (e.g. bbop-skunkworks/q-0000038-foo).",
+                    "type": "string"
+                },
+                "spawned_repo_url": {
+                    "description": "HTTPS URL of the spawned per-question repo.",
+                    "format": "uri",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "started_at": {
+                    "description": "When the run began.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "success": {
+                    "description": "Did the engine report success (orthogonal to acceptance grade).",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "tool_calls": {
+                    "description": "Number of tool calls the agent made during the run.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "id",
+                "question",
+                "spawned_repo",
+                "executor"
+            ],
+            "title": "Run",
+            "type": "object"
+        },
+        "Runtime": {
+            "description": "Where and how long an agent run is expected to take.",
+            "enum": [
+                "small",
+                "standard",
+                "external"
+            ],
+            "title": "Runtime",
+            "type": "string"
+        },
+        "SpeakerKind": {
+            "description": "What kind of entity authored a conversation turn or action.",
+            "enum": [
+                "asker",
+                "mind",
+                "agent",
+                "system",
+                "acceptance_gate"
+            ],
+            "title": "SpeakerKind",
+            "type": "string"
+        },
+        "VerificationGrade": {
+            "description": "Human or agent's verdict after actually inspecting the published artifact.\nAlways interpreted RELATIVE to the requesting Question's deliverable_kind --\na plan_document delivered against a `plan_document` request is `meets_intent`,\nwhereas the same plan_document delivered against a `working_artifact` request\nis `wrong_kind`.",
+            "enum": [
+                "meets_intent",
+                "partial",
+                "wrong_kind",
+                "broken",
+                "unknown"
+            ],
+            "title": "VerificationGrade",
+            "type": "string"
+        }
+    },
+    "$id": "https://bbop-skunkworks.github.io/bbot/schema",
+    "$schema": "https://json-schema.org/draft/2019-09/schema",
+    "additionalProperties": true,
+    "description": "A reusable, human-authored bundle of CLASS-expertise for a run -- domain\ncontext, skill/tool hints, libraries, resources, and optional run hints.\nAttached to a request (a kit:<name> on the issue) and merged into that\nrun's BRIEF.md, so it shapes what the autonomous agent does WITHOUT anyone\nediting the agent / CAT / BBOT.  The human surface for customization;\nauthored as plain YAML (see prototype/kits/README.md), this class is the\ncontract behind it.  Distinct from the per-run issue/BRIEF: the issue\ncarries this-run specifics, the kit carries reusable how-to-build-this-class.",
+    "metamodel_version": "1.11.0",
+    "properties": {
+        "applies_to": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/KitApplicability"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "description": "Signals CAT uses to pick this kit as a default for a task."
+        },
+        "context": {
+            "description": "Domain background injected into the BRIEF.",
+            "type": [
+                "string",
+                "null"
+            ]
+        },
+        "description": {
+            "description": "One line -- what this kit is for.",
+            "type": "string"
+        },
+        "libraries": {
+            "description": "Packages the agent may install / use.",
+            "items": {
+                "type": "string"
+            },
+            "type": [
+                "array",
+                "null"
+            ]
+        },
+        "maintainers": {
+            "description": "GitHub handles of who owns / curates the kit.",
+            "items": {
+                "type": "string"
+            },
+            "type": [
+                "array",
+                "null"
+            ]
+        },
+        "name": {
+            "description": "Stable kebab-case id; the kit:<name> handle.",
+            "type": "string"
+        },
+        "resources": {
+            "description": "Docs / APIs / data to consider.",
+            "items": {
+                "$ref": "#/$defs/KitResource"
+            },
+            "type": [
+                "array",
+                "null"
+            ]
+        },
+        "run_hints": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/KitRunHints"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "description": "OPTIONAL suggested run config -- the agent MAY override (kits inform; the engine decides how to run)."
+        },
+        "skills": {
+            "description": "Hints on approaches / tools the agent should use.",
+            "items": {
+                "type": "string"
+            },
+            "type": [
+                "array",
+                "null"
+            ]
+        },
+        "title": {
+            "description": "Human-readable title.",
+            "type": [
+                "string",
+                "null"
+            ]
+        }
+    },
+    "required": [
+        "name",
+        "description"
+    ],
+    "title": "bbot",
+    "type": "object",
+    "version": null
+}
+
