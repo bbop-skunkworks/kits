@@ -1,0 +1,17 @@
+# Editor backups / swap files
+*~
+*.swp
+*.swo
+.#*
+\#*#
+*.bak
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Python (validate.py runs locally / in CI)
+__pycache__/
+*.py[cod]
+.venv/
+venv/

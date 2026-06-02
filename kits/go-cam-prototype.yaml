@@ -4,10 +4,10 @@
 # GO-CAM / Noctua folks to curate; the grounded engineering lessons are the
 # worked example.  See prototype/kits/README.md for the field reference.
 
-name: gocam-model-prototype
-title: "GO-CAM model-from-figure prototype"
+name: go-cam-prototype
+title: "GO-CAM software prototype"
 description: "Reusable context + hard-won lessons for building an interactive GO-CAM (causal activity model) prototype from a pathway figure or gene list, with per-assertion provenance."
-maintainers: ["@kltm"]                 # draft — reassign to the GO-CAM / Noctua owner
+maintainers: ["@kltm"]
 
 applies_to:
   profile: [developer]
@@ -87,5 +87,5 @@ resources:
 
 run_hints:                             # suggestions the agent MAY override
   stack: "gocam-py to build the LinkML model (+ a provenance sidecar per assertion), then a static page in docs/ wrapping the published <go-gocam-viewer> web component. GitHub Pages, no server."
-  output_target: "An interactive GO-CAM viewer page on Pages with a custom provenance panel that surfaces each node's and edge's source on click."
+  output_target: "An interactive GO-CAM viewer page on Pages."
   keep_in_mind: "Provenance is the point — every node and edge must surface its source, and 'instinct' must read AS instinct. Causal edges are first-class; don't fake citations or back-edges."
