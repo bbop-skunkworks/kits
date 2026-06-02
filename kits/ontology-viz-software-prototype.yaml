@@ -1,7 +1,8 @@
-# Gene Ontology software prototype — the first kit (a STARTING DRAFT).
-# The domain content here is for the GO/ontology folks to curate; the format
+# Ontology visualization software prototype (a STARTING DRAFT).
+# Building interactive prototypes over OBO ontologies (GO and beyond).
+# The domain content here is for the ontology folks to curate; the format
 # and the grounded API/verification notes are the worked example.
-# See prototype/kits/README.md for the field reference.
+# See the repo README for the field reference.
 
 name: ontology-viz-software-prototype
 title: "Ontology visualization software prototype"
@@ -20,10 +21,10 @@ applies_to:
     - "history"
 
 context: |
-  Ontologies are a structured, controlled vocabulary (an ontology) of
-  terms describing biology, organized as a directed graphs, sometimes
-  acyclic (a DAG); terms relate via relationships (which may also be
-  ontology terms). Terms carry stable identifiers like GO:0008150, a
+  An ontology is a structured, controlled vocabulary of terms describing
+  biology, organized as a directed graph — often acyclic (a DAG); terms
+  relate via relationships (which may themselves be ontology terms).
+  Terms carry stable identifiers like GO:0008150, a
   name, a definition, and a namespace. Ontologies are distributed in
   OBO and OWL formats and served by several public APIs (below).  A
   "term browser" or similar prototype typically lets a user
