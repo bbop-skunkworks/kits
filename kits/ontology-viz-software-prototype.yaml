@@ -50,4 +50,13 @@ resources:
 run_hints:                             # suggestions the agent MAY override
   stack: "Prefer a dependency-light prototype (a static ontology data slice + vanilla JS or a small framework) deployable to GitHub Pages; no server needed."
   output_target: "A single interactive page on Pages (the run's docs/runs/.../index.html)."
-  keep_in_mind: "Render ontology graphs honestly; don't fake a strict tree. Cite the data source + its fetch date."
+  keep_in_mind: >-
+    Render ontology graphs honestly; don't fake a strict tree. Cite the data
+    source + its fetch date. This is an interactive app: every feature named in
+    the brief (search, autocomplete, filters, term / gene-product pages) must
+    actually WORK — drive each in a real headless browser (not just the happy
+    path) and emit acceptance.json so the gate can replay them. Let the app do
+    the talking: lead with the working UI (a search box + example queries that
+    run) — no "this is a prototype / Static GitHub Pages app" preamble or
+    how-to paragraph, and no empty placeholder controls (label anything not
+    built tersely in place, e.g. a disabled chip; don't bury the tool in text).
